@@ -1,0 +1,68 @@
+# Python Bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual Environment
+.venv/
+env/
+*.egg-info/
+.eggs/
+.Python
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Streamlit
+.streamlit/
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and Temporary Files
+*.log
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Docker
+*.dockerignore
+Dockerfile~
+
+# Git specific
+*.lock
+.idea/
+*.iml
+
+# Configuration Files
+*.ini
+*.cfg
+*.toml
+
+# Deployment
+*.key
+*.pem
+*.crt
+
+# VS Code
+.vscode/
+
+# Data Files
+*.db
+*.sqlite
+*.pkl
+*.sav
+
+# Secrets and Keys
+.env
+*.secret
+*.enc
+
+# Node.js
+node_modules/
+yarn.lock
+package-lock.json
