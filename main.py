@@ -1,5 +1,18 @@
 import streamlit as st
 from PIL import Image  # For logo and other static images
+from dotenv import load_dotenv
+import os
+from news_fetcher import fetch_news  # Import the fetch_news function from your news_fetcher script
+
+# Load environment variables
+load_dotenv()
+
+# Access the NEWSAPI_KEY variable (Ensure .env is properly configured)
+api_key = os.getenv("NEWSAPI_KEY")
+
+# Check if API key is loaded
+if not api_key:
+    st.error("API key for NewsAPI is missing. Please check your .env file.")
 
 # Global configuration
 st.set_page_config(page_title="AI University News Generator", layout="wide")
@@ -15,7 +28,10 @@ def home_page():
     st.title("AI University News Generator")
     st.subheader("Stay informed with personalized, real-time campus updates!")
     st.write("This platform delivers curated news, safety alerts, and academic opportunities tailored to your interests.")
-    st.image("images/news_portal.webp", use_column_width=True)  # Replace with your image file
+    try:
+        st.image("images/news_portal.webp", use_column_width=True)  # Replace with your image file path
+    except FileNotFoundError:
+        st.warning("Image not found. Please ensure the 'images/news_portal.webp' file exists.")
 
 # News Generator Page
 def news_generator():
@@ -23,15 +39,26 @@ def news_generator():
     st.write("Search and explore news tailored to your preferences.")
     
     query = st.text_input("Search News", placeholder="Type a keyword or query (e.g., 'Scholarships', 'Events')")
-    category = st.selectbox("Category", ["All", "Academic", "Events", "Safety", "Cultural"])
-    
+    country = st.selectbox("Country", ["us", "in", "gb", "ca", "au"], index=0)  # Default to 'us'
+
     if st.button("Generate News"):
-        # Placeholder for news generation integration
-        st.info("News generation functionality will be integrated here.")
-    
-    # News feed display (Placeholder)
-    st.subheader("Generated News")
-    st.write("News results will appear here once integrated with OpenAI and the database.")
+        if not query:
+            st.warning("Please enter a query to fetch news.")
+        else:
+            with st.spinner("Fetching news articles..."):
+                news_articles = fetch_news(query=query, country=country)
+
+            if news_articles:
+                st.subheader("Top News Articles")
+                for idx, article in enumerate(news_articles, start=1):
+                    st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
+                    st.write(f"**Source**: {article['source']}")
+                    st.write(article['description'])
+                    st.write("---")
+            else:
+                st.warning("No articles found. Try adjusting your search terms.")
+
+
 
 # Upload Data Page
 def upload_data():
@@ -41,7 +68,6 @@ def upload_data():
     uploaded_file = st.file_uploader("Choose a file", type=["pdf", "txt", "docx"])
     if uploaded_file:
         st.success(f"File {uploaded_file.name} uploaded successfully.")
-        # Placeholder for data processing integration
         st.info("Data processing functionality will be integrated here.")
 
 # Settings Page
@@ -53,7 +79,6 @@ def settings_page():
     frequency = st.selectbox("Update Frequency", ["Daily", "Weekly", "Monthly"])
     
     if st.button("Save Settings"):
-        # Placeholder for settings persistence
         st.success("Settings saved successfully.")
 
 # About Page
