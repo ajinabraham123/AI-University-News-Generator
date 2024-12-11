@@ -2,7 +2,10 @@ import streamlit as st
 from PIL import Image  # For logo and other static images
 from dotenv import load_dotenv
 import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), 'airflow/plugins'))
 from news_fetcher import fetch_news  # Import the fetch_news function from your news_fetcher script
+import json
 
 # Load environment variables
 load_dotenv()
@@ -36,28 +39,34 @@ def home_page():
 # News Generator Page
 def news_generator():
     st.title("Personalized News Generator")
-    st.write("Search and explore news tailored to your preferences.")
-    
-    query = st.text_input("Search News", placeholder="Type a keyword or query (e.g., 'Scholarships', 'Events')")
-    country = st.selectbox("Country", ["us", "in", "gb", "ca", "au"], index=0)  # Default to 'us'
+    query = st.text_input("Search News", placeholder="Type a keyword (e.g., Scholarships)")
+    country = st.selectbox("Country", ["us", "in", "gb", "ca", "au"], index=0)
 
     if st.button("Generate News"):
-        if not query:
-            st.warning("Please enter a query to fetch news.")
-        else:
-            with st.spinner("Fetching news articles..."):
-                news_articles = fetch_news(query=query, country=country)
-
-            if news_articles:
-                st.subheader("Top News Articles")
-                for idx, article in enumerate(news_articles, start=1):
+        with st.spinner("Fetching news..."):
+            try:
+                articles = fetch_news(query=query, country=country)
+                st.success(f"Found {len(articles)} articles!")
+                for idx, article in enumerate(articles, start=1):
                     st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
                     st.write(f"**Source**: {article['source']}")
                     st.write(article['description'])
                     st.write("---")
-            else:
-                st.warning("No articles found. Try adjusting your search terms.")
+            except Exception as e:
+                st.error(f"An error occurred: {e}")
 
+    # Display previously fetched news
+    st.subheader("Previously Fetched News")
+    try:
+        with open('/Users/ajinabraham/Desktop/AI-University-News-Generator/dags/news_output.json') as f:
+            saved_articles = json.load(f)
+            for idx, article in enumerate(saved_articles, start=1):
+                st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
+                st.write(f"**Source**: {article['source']}")
+                st.write(article['description'])
+                st.write("---")
+    except FileNotFoundError:
+        st.info("No previously fetched news found.")
 
 
 # Upload Data Page
