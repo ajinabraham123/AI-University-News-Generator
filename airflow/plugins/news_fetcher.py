@@ -28,6 +28,7 @@ def fetch_news(query: str = None, country: str = "us") -> list:
         print("Trying NewsAPI...")
         articles = fetch_news_api(query, country)
         if articles:
+            print(f"NewsAPI fetched {len(articles)} articles.")
             return articles
     except Exception as e:
         print(f"NewsAPI failed: {e}")
@@ -37,6 +38,7 @@ def fetch_news(query: str = None, country: str = "us") -> list:
         print("Falling back to Bing News scraping...")
         articles = scrape_backup_news_bing(query)
         if articles:
+            print(f"Bing News scraping fetched {len(articles)} articles.")
             return articles
     except Exception as e:
         print(f"Bing News scraping failed: {e}")
@@ -46,6 +48,7 @@ def fetch_news(query: str = None, country: str = "us") -> list:
         print("Falling back to Google News scraping...")
         articles = scrape_backup_news(query)
         if articles:
+            print(f"Google News scraping fetched {len(articles)} articles.")
             return articles
     except Exception as e:
         print(f"Google News scraping failed: {e}")
