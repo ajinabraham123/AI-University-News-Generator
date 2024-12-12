@@ -1,20 +1,15 @@
-import json
-from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-import sys
+from datetime import datetime, timedelta
 import os
-import logging
+import sys
+from qdrant_client import QdrantClient
+from openai import OpenAI
 
-# Add the directory containing custom plugins to the Python path
-sys.path.append('/opt/airflow/plugins')  # Adjust path to match the container environment
-
+# Add the plugins path for custom imports
+sys.path.append('/opt/airflow/plugins')
 from news_fetcher import fetch_news
 from push_to_qdrant import push_to_qdrant
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # Default DAG arguments
 default_args = {
@@ -22,55 +17,82 @@ default_args = {
     'depends_on_past': False,
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 2,  # Increase retries for robustness
-    'retry_delay': timedelta(minutes=2),
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
 }
 
-# Define task to fetch news articles
-def fetch_news_task(**kwargs):
-    """Fetch news and save to a shared JSON file."""
-    try:
-        query = "Northeastern University Boston"
-        country = "us"
-        # Construct the output path dynamically
-        airflow_home = os.getenv("AIRFLOW_HOME", "/opt/airflow")
-        output_path = os.path.join(airflow_home, "logs", "news_output.json")
-        
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+# GPT Task: Query Qdrant and feed to GPT
+def query_qdrant_and_gpt(**kwargs):
+    """
+    Query Qdrant for relevant articles and feed them to GPT for text generation or question answering.
+    """
+    # Initialize Qdrant client
+    qdrant_client = QdrantClient(
+        api_key=os.getenv("QDRANT_API_KEY"),
+        url=os.getenv("QDRANT_API_URL"),
+    )
+    collection_name = "news_collection"
 
-        # Fetch articles and save them
-        articles = fetch_news(query=query, country=country)
-        with open(output_path, 'w') as f:
-            json.dump(articles, f, indent=4)
-        logger.info(f"Saved news to {output_path}")
-    except Exception as e:
-        logger.error(f"Error in fetch_news_task: {e}")
-        raise
+    # Define query (you can customize this)
+    query_text = kwargs.get('query', "Northeastern University Boston")
+
+    # Search Qdrant for relevant embeddings
+    search_results = qdrant_client.search(
+        collection_name=collection_name,
+        query_vector=[0] * 1536,  # Replace with your actual query vector
+        limit=5,  # Number of results to retrieve
+    )
+
+    # Extract content to feed to GPT
+    retrieved_articles = [
+        point.payload.get("title", "") + " " + point.payload.get("description", "")
+        for point in search_results
+    ]
+    input_text = "\n".join(retrieved_articles)
+
+    # Initialize OpenAI GPT client
+    gpt_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    # Generate response using GPT
+    response = gpt_client.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are an assistant summarizing news."},
+            {"role": "user", "content": input_text},
+        ],
+    )
+
+    # Access the GPT response content
+    gpt_response = response.choices[0].message.content
+    print(f"GPT Response: {gpt_response}")
 
 # Define the DAG
 with DAG(
-    dag_id='news_fetcher_dag',
+    'news_fetcher_with_gpt',
     default_args=default_args,
-    description='A DAG to fetch news articles and push them to Qdrant',
+    description='A DAG to fetch news, generate embeddings, and feed data to GPT',
     schedule_interval='@daily',
     start_date=datetime(2023, 12, 10),
     catchup=False,
 ) as dag:
     # Task to fetch news
-    fetch_news_operator = PythonOperator(
-        task_id='fetch_news_task',
-        python_callable=fetch_news_task,
-        provide_context=True,  # Allows access to **kwargs in the function
-        execution_timeout=timedelta(minutes=5),  # Add a timeout to limit execution time
+    fetch_news_task = PythonOperator(
+        task_id='fetch_news',
+        python_callable=fetch_news,
     )
 
     # Task to push data to Qdrant
-    push_to_qdrant_operator = PythonOperator(
-        task_id='push_to_qdrant_task',
-        python_callable=push_to_qdrant,  # Ensure this function is properly implemented
-        execution_timeout=timedelta(minutes=10),  # Add a timeout to prevent hanging
+    push_to_qdrant_task = PythonOperator(
+        task_id='push_to_qdrant',
+        python_callable=push_to_qdrant,
     )
 
-    # Define the task dependencies
-    fetch_news_operator >> push_to_qdrant_operator
+    # Task to query Qdrant and feed to GPT
+    query_gpt_task = PythonOperator(
+        task_id='query_qdrant_and_gpt',
+        python_callable=query_qdrant_and_gpt,
+        provide_context=True,
+    )
+
+    # Define task dependencies
+    fetch_news_task >> push_to_qdrant_task >> query_gpt_task
