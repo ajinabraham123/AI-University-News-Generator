@@ -1,4 +1,5 @@
 import os
+import json
 from openai import OpenAI
 from qdrant_client import QdrantClient
 
@@ -6,6 +7,7 @@ from qdrant_client import QdrantClient
 def query_qdrant_and_generate_response(query_text, limit=5):
     """
     Query Qdrant for relevant articles and generate a GPT response.
+    Save the GPT response to a JSON file for further use.
 
     Parameters:
         query_text (str): The user query or input to search in Qdrant.
@@ -71,6 +73,16 @@ def query_qdrant_and_generate_response(query_text, limit=5):
         gpt_response = response.choices[0].message.content
     except Exception as e:
         raise RuntimeError(f"Error generating response with GPT: {e}")
+
+    # Save GPT response to a file
+    output_path = "/opt/airflow/logs/gpt_response.json"
+    try:
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        with open(output_path, "w") as f:
+            json.dump({"response": gpt_response}, f, indent=4)
+        print(f"GPT response saved to {output_path}")
+    except Exception as e:
+        raise RuntimeError(f"Error saving GPT response to file: {e}")
 
     # Return GPT response
     return gpt_response

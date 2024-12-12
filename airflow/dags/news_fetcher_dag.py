@@ -3,6 +3,7 @@ from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
 import os
 import sys
+import json
 from qdrant_client import QdrantClient
 from openai import OpenAI
 
@@ -25,6 +26,7 @@ default_args = {
 def query_qdrant_and_gpt(**kwargs):
     """
     Query Qdrant for relevant articles and feed them to GPT for text generation or question answering.
+    Save the GPT response to a JSON file.
     """
     # Initialize Qdrant client
     qdrant_client = QdrantClient(
@@ -33,17 +35,17 @@ def query_qdrant_and_gpt(**kwargs):
     )
     collection_name = "news_collection"
 
-    # Define query (you can customize this)
+    # Define query (customize this)
     query_text = kwargs.get('query', "Northeastern University Boston")
 
     # Search Qdrant for relevant embeddings
     search_results = qdrant_client.search(
         collection_name=collection_name,
-        query_vector=[0] * 1536,  # Replace with your actual query vector
-        limit=5,  # Number of results to retrieve
+        query_vector=[0] * 1536,  # Replace with actual query vector
+        limit=5,
     )
 
-    # Extract content to feed to GPT
+    # Extract content for GPT
     retrieved_articles = [
         point.payload.get("title", "") + " " + point.payload.get("description", "")
         for point in search_results
@@ -53,7 +55,7 @@ def query_qdrant_and_gpt(**kwargs):
     # Initialize OpenAI GPT client
     gpt_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # Generate response using GPT
+    # Generate GPT response
     response = gpt_client.chat.completions.create(
         model="gpt-4",
         messages=[
@@ -62,9 +64,15 @@ def query_qdrant_and_gpt(**kwargs):
         ],
     )
 
-    # Access the GPT response content
+    # Extract GPT response content
     gpt_response = response.choices[0].message.content
-    print(f"GPT Response: {gpt_response}")
+
+    # Save GPT response to a file
+    gpt_response_path = "/opt/airflow/logs/gpt_response.json"
+    with open(gpt_response_path, 'w') as f:
+        json.dump({"response": gpt_response}, f, indent=4)
+
+    print(f"GPT Response saved to {gpt_response_path}")
 
 # Define the DAG
 with DAG(
