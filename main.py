@@ -23,7 +23,7 @@ st.set_page_config(page_title="AI University News Generator", layout="wide")
 # Sidebar Navigation
 def sidebar():
     st.sidebar.title("Navigation")
-    page = st.sidebar.radio("Go to", ["Home", "News Generator", "Upload Data", "Settings", "About"])
+    page = st.sidebar.radio("Go to", ["Home", "News Generator", "About"])
     return page
 
 # Home Page
@@ -80,15 +80,7 @@ def upload_data():
         st.info("Data processing functionality will be integrated here.")
 
 # Settings Page
-def settings_page():
-    st.title("Settings")
-    st.write("Configure your preferences.")
-    
-    user_email = st.text_input("Email", placeholder="Enter your email for personalized updates")
-    frequency = st.selectbox("Update Frequency", ["Daily", "Weekly", "Monthly"])
-    
-    if st.button("Save Settings"):
-        st.success("Settings saved successfully.")
+
 
 # About Page
 def about_page():
@@ -108,10 +100,6 @@ def main():
         home_page()
     elif page == "News Generator":
         news_generator()
-    elif page == "Upload Data":
-        upload_data()
-    elif page == "Settings":
-        settings_page()
     elif page == "About":
         about_page()
 

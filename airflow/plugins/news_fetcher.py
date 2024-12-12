@@ -2,6 +2,7 @@ from dotenv import load_dotenv
 import os
 import requests
 from bs4 import BeautifulSoup
+import logging
 
 # Load environment variables
 load_dotenv()
@@ -11,6 +12,10 @@ api_key = os.getenv("NEWSAPI_KEY")
 
 if not api_key:
     raise ValueError("API key not found. Please ensure 'NEWSAPI_KEY' is set in your .env file.")
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def fetch_news(query: str = None, country: str = "us") -> list:
     """
@@ -25,36 +30,36 @@ def fetch_news(query: str = None, country: str = "us") -> list:
     """
     try:
         # Try NewsAPI
-        print("Trying NewsAPI...")
+        logger.info("Attempting to fetch news using NewsAPI...")
         articles = fetch_news_api(query, country)
         if articles:
-            print(f"NewsAPI fetched {len(articles)} articles.")
+            logger.info(f"NewsAPI fetched {len(articles)} articles.")
             return articles
     except Exception as e:
-        print(f"NewsAPI failed: {e}")
+        logger.error(f"NewsAPI failed: {e}")
 
     try:
         # Fallback to Bing News scraping
-        print("Falling back to Bing News scraping...")
+        logger.info("Falling back to Bing News scraping...")
         articles = scrape_backup_news_bing(query)
         if articles:
-            print(f"Bing News scraping fetched {len(articles)} articles.")
+            logger.info(f"Bing News scraping fetched {len(articles)} articles.")
             return articles
     except Exception as e:
-        print(f"Bing News scraping failed: {e}")
+        logger.error(f"Bing News scraping failed: {e}")
 
     try:
         # Fallback to Google News scraping
-        print("Falling back to Google News scraping...")
+        logger.info("Falling back to Google News scraping...")
         articles = scrape_backup_news(query)
         if articles:
-            print(f"Google News scraping fetched {len(articles)} articles.")
+            logger.info(f"Google News scraping fetched {len(articles)} articles.")
             return articles
     except Exception as e:
-        print(f"Google News scraping failed: {e}")
+        logger.error(f"Google News scraping failed: {e}")
 
     # If all sources fail
-    print("No articles found from any source.")
+    logger.warning("No articles found from any source.")
     return []
 
 def fetch_news_api(query: str, country: str) -> list:
@@ -75,20 +80,24 @@ def fetch_news_api(query: str, country: str) -> list:
         "category": "education",
         "country": country,
     }
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
-    if data.get("status") == "ok" and data.get("articles"):
-        print(f"Number of articles fetched from NewsAPI: {len(data['articles'])}")
-        return [
-            {
-                "title": article["title"],
-                "description": article["description"],
-                "url": article["url"],
-                "source": article["source"]["name"],
-            }
-            for article in data["articles"]
-        ]
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("status") == "ok" and data.get("articles"):
+            logger.info(f"Number of articles fetched from NewsAPI: {len(data['articles'])}")
+            return [
+                {
+                    "title": article["title"],
+                    "description": article["description"],
+                    "url": article["url"],
+                    "source": article["source"]["name"],
+                }
+                for article in data["articles"]
+            ]
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching news from NewsAPI: {e}")
+        raise
     return []
 
 def scrape_backup_news_bing(query: str) -> list:
@@ -118,10 +127,10 @@ def scrape_backup_news_bing(query: str) -> list:
             if len(articles) >= 10:  # Limit to 10 articles
                 break
 
-        print(f"Number of articles fetched from Bing: {len(articles)}")
+        logger.info(f"Number of articles fetched from Bing: {len(articles)}")
         return articles
     except Exception as e:
-        print(f"Error during Bing scraping: {e}")
+        logger.error(f"Error during Bing scraping: {e}")
         return []
 
 def scrape_backup_news(query: str) -> list:
@@ -141,7 +150,7 @@ def scrape_backup_news(query: str) -> list:
         response.raise_for_status()
 
         # Debugging: Print the raw HTML response
-        print("Raw HTML content:", response.text[:1000])  # Print first 1000 characters
+        logger.debug("Raw HTML content: %s", response.text[:1000])  # Print first 1000 characters
 
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -155,8 +164,8 @@ def scrape_backup_news(query: str) -> list:
             if len(articles) >= 10:  # Limit to 10 articles
                 break
 
-        print(f"Number of articles fetched from scraping: {len(articles)}")
+        logger.info(f"Number of articles fetched from Google scraping: {len(articles)}")
         return articles
     except Exception as e:
-        print(f"Error during scraping: {e}")
+        logger.error(f"Error during Google scraping: {e}")
         return []
