@@ -82,26 +82,32 @@ def check_dag_run_status(dag_id, dag_run_id):
 # Display Results
 def display_results():
     st.subheader("GPT Response")
+    gpt_response_path = "airflow/logs/gpt_response.json"
     try:
-        gpt_response_path = "/opt/airflow/logs/gpt_response.json"
-        with open(gpt_response_path) as f:
-            gpt_data = json.load(f)
-            st.write(gpt_data.get("response", "No response found."))
-    except FileNotFoundError:
-        st.info("No GPT response found. Please trigger the DAG.")
+        if os.path.exists(gpt_response_path):
+            with open(gpt_response_path) as f:
+                gpt_data = json.load(f)
+                st.write(gpt_data.get("response", "No response found."))
+        else:
+            st.error(f"GPT response file not found at {gpt_response_path}.")
+    except Exception as e:
+        st.error(f"Error reading GPT response: {e}")
 
     st.subheader("Previously Fetched News")
+    news_output_path = "airflow/logs/news_output.json"
     try:
-        news_output_path = "/opt/airflow/logs/news_output.json"
-        with open(news_output_path) as f:
-            saved_articles = json.load(f)
-            for idx, article in enumerate(saved_articles, start=1):
-                st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
-                st.write(f"**Source**: {article['source']}")
-                st.write(article['description'])
-                st.write("---")
-    except FileNotFoundError:
-        st.info("No previously fetched news found.")
+        if os.path.exists(news_output_path):
+            with open(news_output_path) as f:
+                saved_articles = json.load(f)
+                for idx, article in enumerate(saved_articles, start=1):
+                    st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
+                    st.write(f"**Source**: {article['source']}")
+                    st.write(article['description'])
+                    st.write("---")
+        else:
+            st.error(f"News output file not found at {news_output_path}.")
+    except Exception as e:
+        st.error(f"Error reading news output: {e}")
 
 # News Generator Page
 def news_generator():
