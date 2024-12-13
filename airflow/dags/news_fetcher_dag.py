@@ -6,6 +6,8 @@ import sys
 import json
 from qdrant_client import QdrantClient
 from openai import OpenAI
+import openai
+
 
 # Add the plugins path for custom imports
 sys.path.append('/opt/airflow/plugins')
@@ -22,6 +24,23 @@ default_args = {
     'retry_delay': timedelta(minutes=5),
 }
 
+
+# Function to generate embedding using OpenAI
+
+#def get_embedding(text, model="text-embedding-ada-002"):
+ #   """
+  #  #Generate embeddings for the given text using OpenAI API.
+   # """
+    #try:
+     #   response = openai.Embedding.create(
+      #      input=text,
+       #     model=model
+        #)
+        #return response['data'][0]['embedding']
+    #except Exception as e:
+     #   raise RuntimeError(f"Error generating embedding: {e}")
+
+
 # GPT Task: Query Qdrant and feed to GPT
 def query_qdrant_and_gpt(**kwargs):
     """
@@ -36,12 +55,13 @@ def query_qdrant_and_gpt(**kwargs):
     collection_name = "news_collection"
 
     # Define query (customize this)
-    query_text = kwargs.get('query', "Northeastern University Boston")
-
+    query_text = kwargs.get('query', "university")
+    #query_vector = get_embedding(query_text, model="text-embedding-ada-002")
     # Search Qdrant for relevant embeddings
     search_results = qdrant_client.search(
         collection_name=collection_name,
         query_vector=[0] * 1536,  # Replace with actual query vector
+        #query_vector=query_vector,
         limit=5,
     )
 

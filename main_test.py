@@ -7,7 +7,6 @@ import requests
 import json
 import time
 import openai
-from streamlit_option_menu import option_menu
 # Add the plugins path for custom imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'airflow/plugins'))
 from news_fetcher import fetch_news  # Import the fetch_news function from your news_fetcher script
@@ -29,65 +28,10 @@ if not api_key:
 st.set_page_config(page_title="AI University News Generator", layout="wide")
 
 # Sidebar Navigation
-import streamlit as st
-from streamlit_option_menu import option_menu
-
 def sidebar():
-    # Add custom styles for sidebar
-    st.markdown(
-        """
-        <style>
-        /* General sidebar container */
-        .css-1lcbmhc.e1fqkh3o3 {
-            background-color: #f4f4f4;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Menu item customization */
-        .nav-link {
-            font-size: 18px !important;
-            font-weight: bold;
-            color: #444 !important;
-        }
-
-        /* Hover effect for navigation items */
-        .nav-link:hover {
-            background-color: #d9edf7 !important;
-            color: #0c5460 !important;
-            border-radius: 5px;
-        }
-
-        /* Selected navigation item */
-        .nav-link-selected {
-            background-color: #02ab21 !important;
-            color: white !important;
-            font-weight: bold;
-        }
-
-        /* Sidebar title styling */
-        .css-fg4pbf {
-            font-size: 20px !important;
-            font-weight: bold;
-            text-align: center;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    with st.sidebar:
-        selected_page = option_menu(
-            menu_title="Navigation",  # Required
-            options=["Home", "News Generator", "Q&A Bot", "About"],  # Menu options
-            icons=["house", "newspaper", "robot", "info-circle"],  # Corresponding icons from Bootstrap
-            menu_icon="cast",  # Menu icon
-            default_index=0,  # Default selected index
-        )
-
-    return selected_page
-
+    st.sidebar.title("Navigation")
+    page = st.sidebar.radio("Go to", ["Home", "News Generator","Q&A Bot", "About"])
+    return page
 
 # Home Page
 
@@ -204,10 +148,18 @@ def home_page():
 
     # Sidebar
     with st.sidebar:
-        
-       
+        st.markdown(
+            "<div class='contact-box'>", unsafe_allow_html=True
+        )
+        st.markdown("### About This App")
+        st.write(
+            """
+            Welcome to the AI University News Hub! Our mission is to keep you informed and prepared 
+            with the latest news, safety updates, and career opportunities for university communities.
+            """
+        )
         st.markdown("### Contact Us")
-        st.write("For inquiries, email us at [inamdar.chaitanya6398@gmail.com](mailto:inamdar.chaitanya6398@gmail.com)")
+        st.write("For inquiries, email us at [contact@aiuniversity.com](mailto:contact@aiuniversity.com)")
         st.markdown("</div>", unsafe_allow_html=True)
 
     # Footer
@@ -220,12 +172,16 @@ def home_page():
         unsafe_allow_html=True,
     )
 
+
+
+
+
 # Check Airflow Connectivity
 def check_airflow_connection():
     try:
         response = requests.get(f"{airflow_base_url}/dags", auth=(airflow_username, airflow_password))
         response.raise_for_status()
-        #st.success("Connected to Airflow API!")
+        st.success("Connected to Airflow API!")
         return True
     except requests.exceptions.RequestException as e:
         st.error(f"Failed to connect to Airflow API: {e}")
@@ -256,267 +212,63 @@ def check_dag_run_status(dag_id, dag_run_id):
         st.error(f"Error checking DAG run status: {e}")
         return None
 
+# Display Results
 def display_results():
-    #st.subheader("GPT Response")
-    gpt_response_path = "airflow/logs/gpt_response.json"
-    try:
-        if os.path.exists(gpt_response_path):
-            with open(gpt_response_path) as f:
-                gpt_data = json.load(f)
-                st.write(gpt_data.get("response", "No response found."))
-        else:
-            st.error(f"GPT response file not found at {gpt_response_path}.")
-    except Exception as e:
-        st.error(f"Error reading GPT response: {e}")
+    st.title("News Results")
 
-    st.subheader("Previously Fetched News")
-    news_output_path = "airflow/logs/news_output.json"
-    try:
-        if os.path.exists(news_output_path):
-            with open(news_output_path) as f:
-                saved_articles = json.load(f)
-                for idx, article in enumerate(saved_articles, start=1):
-                    st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
-                    st.write(f"**Source**: {article['source']}")
-                    st.write(article['description'])
-                    st.write("---")
-        else:
-            st.error(f"News output file not found at {news_output_path}.")
-    except Exception as e:
-        st.error(f"Error reading news output: {e}")
+    # Allow users to select the type of news they want to review
+    news_type = st.selectbox(
+        "Select the type of news to display", 
+        ["Academic News", "Safety News", "Career Articles"]
+    )
+
+    st.write(f"Showing previously fetched {news_type.lower()}...")
+
+    # Example placeholder for fetched articles
+    articles = [
+        {"title": "Scholarship Opportunities", "source": "University Times", "description": "Find the best scholarships available this year.", "url": "#"},
+        {"title": "Campus Safety Tips", "source": "Campus Security", "description": "How to stay safe on campus.", "url": "#"},
+        {"title": "Top Career Fairs", "source": "Career Center", "description": "Upcoming career fairs you shouldn't miss.", "url": "#"},
+    ]
+
+    # Filter articles by selected news type
+    filtered_articles = [a for a in articles if news_type.lower() in a["description"].lower()]
+
+    # Display articles
+    for idx, article in enumerate(filtered_articles, start=1):
+        st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
+        st.write(f"**Source**: {article['source']}")
+        st.write(article['description'])
+        st.write("---")
 
 
 # News Generator Page
 def news_generator():
-
-    st.markdown(
-        """
-        <style>
-        body {
-            background-color: #f4f4f4;
-            font-family: 'Arial', sans-serif;
-        }
-        .main-title {
-            font-size: 80px;
-            color: #2c3e50;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-            animation: bounceIn 2s ease-in-out;
-            transition: transform 0.3s ease, font-size 0.3s ease;
-        }
-        .main-title:hover {
-            transform: scale(1.1);
-            font-size: 50px;
-            animation: none;
-        }
-        .subtitle {
-            font-size: 24px;
-            color: #1abc9c;
-            text-align: center;
-            margin-bottom: 30px;
-            animation: fadeIn 2s;
-        }
-        .description {
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 20px;
-            margin-bottom: 40px;
-            animation: fadeIn 2.5s;
-        }
-        .buttons-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .footer {
-            text-align: center;
-            font-size: 14px;
-            color: #95a5a6;
-            margin-top: 30px;
-        }
-        .contact-box {
-            border: 1px solid #dcdcdc;
-            border-radius: 10px;
-            padding: 20px;
-            background-color: #ffffff;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            animation: slideUp 1.5s;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes bounceIn {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateY(0);
-            }
-            40% {
-                transform: translateY(-30px);
-            }
-            60% {
-                transform: translateY(-15px);
-            }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Main Title with Animation
-    st.markdown("<h1 class='main-title'>Personalized News Generator</h1>", unsafe_allow_html=True)
-
-    #st.title("Personalized News Generator")
-
-    # Connectivity Check
-    if not check_airflow_connection():
-        return
+    st.title("Personalized News Generator")
 
     # Allow users to select the type of news they want
     news_type = st.selectbox(
-        "Select the type of news to generate",
+        "Select the type of news you want to generate", 
         ["Academic News", "Safety News", "Career Articles"]
     )
 
+    # Input for search query and country selection
     query = st.text_input("Search News", placeholder=f"Type a keyword for {news_type.lower()} (e.g., Scholarships)")
     country = st.selectbox("Country", ["us", "in", "gb", "ca", "au"], index=0)
 
     if st.button("Generate News"):
-        with st.spinner("Please wait while we fetch the news!"):
+        with st.spinner("Fetching news..."):
             if query:
-                response = trigger_airflow_dag("news_fetcher_with_gpt", query, country)
-                if response:
-                    #st.success("Airflow DAG triggered successfully! Polling for status...")
-                    dag_run_id = response.get("dag_run_id")
-
-                    # Poll for status
-                    status = "queued"
-                    while status in ["queued", "running"]:
-                        time.sleep(5)  # Wait before polling again
-                        status = check_dag_run_status("news_fetcher_with_gpt", dag_run_id)
-                        #st.info(f"DAG Run Status: {status}")
-
-                    if status == "success":
-                        #st.success("DAG execution completed successfully!")
-                        st.success(f"Latest {news_type.lower()}!")
-                        display_results()
-                    else:
-                        st.error(f"DAG execution failed or did not complete. Status: {status}")
-                else:
-                    st.error("Failed to trigger Airflow DAG.")
+                # Simulate news fetching logic based on the selected type
+                st.success(f"Here are the latest {news_type.lower()}!")
+                # Add a placeholder for displaying news articles
+                st.write(f"Displaying results for '{query}' in {news_type.lower()} for {country.upper()}...")
             else:
-                st.warning("Please enter a query before triggering the DAG.")
+                st.warning("Please enter a query before generating news.")
+
 
 def conversational_qna_bot():
-
-    st.markdown(
-        """
-        <style>
-        body {
-            background-color: #f4f4f4;
-            font-family: 'Arial', sans-serif;
-        }
-        .main-title {
-            font-size: 80px;
-            color: #2c3e50;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 10px;
-            animation: bounceIn 2s ease-in-out;
-            transition: transform 0.3s ease, font-size 0.3s ease;
-        }
-        .main-title:hover {
-            transform: scale(1.1);
-            font-size: 50px;
-            animation: none;
-        }
-        .subtitle {
-            font-size: 24px;
-            color: #1abc9c;
-            text-align: center;
-            margin-bottom: 30px;
-            animation: fadeIn 2s;
-        }
-        .description {
-            text-align: center;
-            color: #7f8c8d;
-            font-size: 20px;
-            margin-bottom: 40px;
-            animation: fadeIn 2.5s;
-        }
-        .buttons-container {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .footer {
-            text-align: center;
-            font-size: 14px;
-            color: #95a5a6;
-            margin-top: 30px;
-        }
-        .contact-box {
-            border: 1px solid #dcdcdc;
-            border-radius: 10px;
-            padding: 20px;
-            background-color: #ffffff;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            animation: slideUp 1.5s;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        @keyframes slideUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes bounceIn {
-            0%, 20%, 50%, 80%, 100% {
-                transform: translateY(0);
-            }
-            40% {
-                transform: translateY(-30px);
-            }
-            60% {
-                transform: translateY(-15px);
-            }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Main Title with Animation
-    st.markdown("<h1 class='main-title'>AI Conversational Chatbot</h1>", unsafe_allow_html=True)    
-
-    # Center the image using CSS styling
-    st.write(
-        """
-        <style>
-        .center {
-            display: flex;
-            justify-content: center;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-    #st.image("images/chatbot.png", caption="Conversational Chatbot", width=100)
-
-    
-
- 
-    #st.image("images/chatbot.png", caption="Conversational Chatbot", use_column_width=True)
-    #st.title("Conversational Chatbot (Q&A Style)")
+    st.title("Conversational Chatbot (Q&A Style)")
 
     news_output_path = "airflow/logs/news_output.json"
 
@@ -602,13 +354,10 @@ def conversational_qna_bot():
 
 # About Page
 def about_page():
-     st.markdown("### About This App")
-     st.write(
-            """
-            Welcome to the AI University News Hub! Our mission is to keep you informed and prepared 
-            with the latest news, safety updates, and career opportunities for university communities.
-            """
-        )
+    st.title("About This Project")
+    st.write("""
+    The AI University News Generator provides personalized updates about campus life using cutting-edge AI and NLP.
+    """)
 
 # Main Application
 def main():
