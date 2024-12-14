@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Set environment variables to avoid interactive prompts and set up Streamlit configs
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    STREAMLIT_SERVER_PORT=8502 \
+    STREAMLIT_SERVER_PORT=8080 \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0
 
 # Set the working directory

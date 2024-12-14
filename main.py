@@ -11,6 +11,9 @@ from streamlit_option_menu import option_menu
 # Add the plugins path for custom imports
 sys.path.append(os.path.join(os.path.dirname(__file__), 'airflow/plugins'))
 from news_fetcher import fetch_news  # Import the fetch_news function from your news_fetcher script
+import streamlit.web.bootstrap as bootstrap
+from streamlit.web import cli as stcli
+
 
 # Load environment variables
 load_dotenv()
