@@ -1,5 +1,8 @@
 # *AI UNIVERSITY NEWS GENERATOR*
 
+## *Detailed Documentation*: https://docs.google.com/document/d/1ysqY-ATauIbsHs9m6lmn6pXKRTC4hJPSRth4p02GDOc/edit?usp=sharing
+
+
 ## *Problem Statement*
 Students struggle to stay informed on university updates due to fragmented and overwhelming information from diverse sources like social media and bulletins. A unified solution is needed to deliver concise, personalized, real-time news tailored to their interests, enhancing campus engagement and accessibility.
 
