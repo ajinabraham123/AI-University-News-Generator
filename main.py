@@ -231,10 +231,12 @@ def check_airflow_connection():
         st.error(f"Failed to connect to Airflow API: {e}")
         return False
 
-# Trigger Airflow DAG
-def trigger_airflow_dag(dag_id, query, country):
+def trigger_airflow_dag(dag_id, category, university):
+    """
+    Trigger the Airflow DAG with dynamic inputs for category and university.
+    """
     url = f"{airflow_base_url}/dags/{dag_id}/dagRuns"
-    payload = {"conf": {"query": query, "country": country}}
+    payload = {"conf": {"category": category, "university": university}}
     try:
         response = requests.post(url, auth=(airflow_username, airflow_password), json=payload)
         response.raise_for_status()
@@ -256,10 +258,12 @@ def check_dag_run_status(dag_id, dag_run_id):
         st.error(f"Error checking DAG run status: {e}")
         return None
 
-def display_results():
-    #st.subheader("GPT Response")
+def display_results(news_type, university):
+    st.subheader(f"Displaying Results for {news_type} at {university}")
     gpt_response_path = "airflow/logs/gpt_response.json"
+    
     try:
+        # Check for GPT response if required
         if os.path.exists(gpt_response_path):
             with open(gpt_response_path) as f:
                 gpt_data = json.load(f)
@@ -269,24 +273,37 @@ def display_results():
     except Exception as e:
         st.error(f"Error reading GPT response: {e}")
 
-    st.subheader("Previously Fetched News")
+    # Load saved articles
     news_output_path = "airflow/logs/news_output.json"
     try:
         if os.path.exists(news_output_path):
             with open(news_output_path) as f:
                 saved_articles = json.load(f)
-                for idx, article in enumerate(saved_articles, start=1):
-                    st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
-                    st.write(f"**Source**: {article['source']}")
-                    st.write(article['description'])
-                    st.write("---")
+                
+                # Filter articles by selected category and university
+                matching_articles = [
+                    article for article in saved_articles
+                    if news_type.lower() in article.get("category", "").lower()
+                    and university.lower() == article.get("source", "").lower()
+                ]
+                
+                # Display articles
+                if matching_articles:
+                    for idx, article in enumerate(matching_articles, start=1):
+                        st.markdown(f"### {idx}. [{article['title']}]({article['url']})")
+                        st.write(f"**Source**: {article['source']}")
+                        st.write(article.get('description', 'No description available.'))
+                        st.write("---")
+                #else:
+                #    st.info(f"No {news_type.lower()} found for {university}.")
         else:
             st.error(f"News output file not found at {news_output_path}.")
     except Exception as e:
         st.error(f"Error reading news output: {e}")
 
 
-# News Generator Page
+
+
 def news_generator():
 
     st.markdown(
@@ -371,46 +388,54 @@ def news_generator():
     # Main Title with Animation
     st.markdown("<h1 class='main-title'>Personalized News Generator</h1>", unsafe_allow_html=True)
 
-    #st.title("Personalized News Generator")
-
-    # Connectivity Check
     if not check_airflow_connection():
         return
 
-    # Allow users to select the type of news they want
+    # Select the type of news
     news_type = st.selectbox(
         "Select the type of news to generate",
         ["Academic News", "Safety News", "Career Articles"]
     )
 
-    query = st.text_input("Search News", placeholder=f"Type a keyword for {news_type.lower()} (e.g., Scholarships)")
-    country = st.selectbox("Country", ["us", "in", "gb", "ca", "au"], index=0)
+    # Select the university
+    university = st.selectbox(
+        "Select University",
+        [
+            "Northeastern University",
+            "Arizona State University",
+            "UCLA",
+            "University of Illinois Urbana-Champaign",
+            "University of Michigan",
+            "University of Texas at Austin"
+        ]
+    )
 
     if st.button("Generate News"):
         with st.spinner("Please wait while we fetch the news!"):
-            if query:
-                response = trigger_airflow_dag("news_fetcher_with_gpt", query, country)
-                if response:
-                    #st.success("Airflow DAG triggered successfully! Polling for status...")
-                    dag_run_id = response.get("dag_run_id")
+            # Trigger the Airflow DAG with dynamic inputs
+            response = trigger_airflow_dag(
+                dag_id="news_fetcher_pipeline",
+                category=news_type,
+                university=university
+            )
+            if response:
+                dag_run_id = response.get("dag_run_id")
+                status = "queued"
 
-                    # Poll for status
-                    status = "queued"
-                    while status in ["queued", "running"]:
-                        time.sleep(5)  # Wait before polling again
-                        status = check_dag_run_status("news_fetcher_with_gpt", dag_run_id)
-                        #st.info(f"DAG Run Status: {status}")
+                # Poll for status
+                while status in ["queued", "running"]:
+                    time.sleep(5)
+                    status = check_dag_run_status("news_fetcher_pipeline", dag_run_id)
 
-                    if status == "success":
-                        #st.success("DAG execution completed successfully!")
-                        st.success(f"Latest {news_type.lower()}!")
-                        display_results()
-                    else:
-                        st.error(f"DAG execution failed or did not complete. Status: {status}")
+                if status == "success":
+                    st.success(f"Latest {news_type.lower()} from {university}!")
+                    display_results(news_type, university)
                 else:
-                    st.error("Failed to trigger Airflow DAG.")
+                    st.error(f"DAG execution failed or did not complete. Status: {status}")
             else:
-                st.warning("Please enter a query before triggering the DAG.")
+                st.error("Failed to trigger Airflow DAG.")
+
+
 
 def conversational_qna_bot():
 
