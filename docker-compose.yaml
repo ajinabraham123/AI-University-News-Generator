@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 x-airflow-common:
   &airflow-common
@@ -17,6 +17,7 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     _PIP_ADDITIONAL_REQUIREMENTS: "qdrant-client openai python-dotenv ${_PIP_ADDITIONAL_REQUIREMENTS:-}"
     PYTHONPATH: /opt/airflow/plugins
+    AIRFLOW__WEBSERVER__WEB_SERVER_PORT: 8090
   env_file:  # Include external .env file
     - .env
   volumes:
@@ -64,9 +65,9 @@ services:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      - "8090:8090"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8090/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -185,6 +186,31 @@ services:
     user: "0:0"
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
+
+  streamlit:
+    image: python:3.10-slim
+    container_name: streamlit
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"  # Ensure both internal and external ports match Streamlit's runtime configuration
+    volumes:
+      - .:/app
+    environment:
+      - STREAMLIT_SERVER_PORT=8080  # Match the port to what you expose
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    working_dir: /app
+    command: >
+      bash -c "
+      pip install --no-cache-dir streamlit &&
+      streamlit run main.py --server.port=8080 --server.address=0.0.0.0"
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres-db-volume:

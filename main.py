@@ -17,7 +17,7 @@ load_dotenv()
 
 # Access environment variables
 api_key = os.getenv("NEWSAPI_KEY")
-airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://localhost:8080/api/v1")
+airflow_base_url = os.getenv("AIRFLOW_BASE_URL", "http://airflow-webserver:8090/api/v1")
 airflow_username = os.getenv("AIRFLOW_USERNAME", "airflow")
 airflow_password = os.getenv("AIRFLOW_PASSWORD", "airflow")
 
